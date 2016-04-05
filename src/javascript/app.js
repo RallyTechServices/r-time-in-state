@@ -52,7 +52,7 @@ Ext.define("TSTimeInState", {
             }
         });
         
-        //this._addDateSelectors(date_chooser_box);
+        this._addDateSelectors(date_chooser_box);
         
         container.add({ xtype:'container', flex: 1});
         container.add({ 
@@ -118,14 +118,20 @@ Ext.define("TSTimeInState", {
             xtype:'rallydatefield',
             itemId: 'start_date_selector',
             fieldLabel: 'Start Date:',
-            labelWidth: label_width
+            labelWidth: label_width,
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-startdatecombo'
         });
         
         container.add({
             xtype:'rallydatefield',
             itemId: 'end_date_selector',
             fieldLabel: 'End Date:',
-            labelWidth: label_width
+            labelWidth: label_width,
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-enddatecombo'
         });
     },
     
@@ -159,6 +165,8 @@ Ext.define("TSTimeInState", {
         
         this.startState = this.down('#start_state_selector').getValue();
         this.endState   = this.down('#end_state_selector').getValue();
+        this.startDate  = this.down('#start_date_selector').getValue();
+        this.endDate    = this.down('#end_date_selector').getValue();
         
         this.logger.log('start/end state', this.startState, this.endState);
         if ( Ext.isEmpty(this.startState) || Ext.isEmpty(this.endState) ) {
@@ -175,13 +183,59 @@ Ext.define("TSTimeInState", {
             scope: this,
             success: function(rows_by_oid) {
                 var rows = Ext.Object.getValues(rows_by_oid);
-
+                rows = this._removeItemsOutsideTimeboxes(rows);
+                
                 this._makeGrid(rows);
             },
             failure: function(msg) {
                 Ext.Msg.alert('Problem loading data', msg);
             }
             
+        });
+    },
+    
+    _removeItemsOutsideTimeboxes: function(rows) {
+        if ( Ext.isEmpty(this.startDate) && Ext.isEmpty(this.endDate) ) {
+            return rows;
+        }
+        
+        var filtered_rows = this._getRowsAfter(rows,this.startDate);
+        
+        filtered_rows = this._getRowsBefore(filtered_rows,this.endDate);
+       
+        return filtered_rows;
+    },
+    
+    _getRowsAfter: function(rows, start_date) {
+        var enter_field = 'firstEntry_' + this.startState;
+        
+        console.log(rows, start_date);
+        
+        if ( Ext.isEmpty(start_date) ) {
+            return rows;
+        }
+        
+        return Ext.Array.filter(rows,function(row){
+            var enter = row[enter_field];
+            if ( Ext.isEmpty(enter) ) {
+                return false;
+            }
+            return ( Rally.util.DateTime.toIsoString(start_date) <= enter );
+        });
+    },
+    
+    _getRowsBefore: function(rows, end_date) {
+        var enter_field = 'firstEntry_' + this.startState;
+        if ( Ext.isEmpty(end_date) ) {
+            return rows;
+        }
+        
+        return Ext.Array.filter(rows,function(row){
+            var enter = row[enter_field];
+            if ( Ext.isEmpty(enter) ) {
+                return false;
+            }
+            return ( Rally.util.DateTime.toIsoString(end_date) >= enter );
         });
     },
     
@@ -242,6 +296,7 @@ Ext.define("TSTimeInState", {
         
         return row;
     },
+    
     _setValidStates: function(model_name, field_name) {
         var deferred = Ext.create('Deft.Deferred'),
             me = this;
@@ -468,7 +523,6 @@ Ext.define("TSTimeInState", {
         ];
         
         var show_states = this._getShowStates(this.allowedStates, this.startState, this.endState);
-        
         
         Ext.Array.each(show_states, function(state) {
             columns.push({

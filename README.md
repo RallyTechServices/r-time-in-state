@@ -1,5 +1,11 @@
 #TS Time In State
 
+An app to show a series of stories and the time spent in each "state".  A field is chosen by the user to represent state.  The user selects a beginning and end value from the valid dropdowns for that particular field and the app will calculate how much time is spent in each state.
+
+If an item enters and leaves and enters and leaves the same state, the time in state is the sum of all time in that state.
+
+If the user selects a date range, then the app will only show items that entered the first selected state within that range for the very first time.  If the user picks 1 Jan 2015 to 1 Feb 2015 and the item entered the first state in december, then it will not show, even if that item left the state and entered it again in January. 
+
 ## Development Notes
 
 ### First Load
