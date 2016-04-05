@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Apr 04 2016 19:28:36 GMT-0700 (PDT) -->
+    <!--  Build Date: Mon Apr 04 2016 20:30:40 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Apr 04 2016 19:28:36 GMT-0700 (PDT)";
-        var CHECKSUM = 7871352257;
+        var APP_BUILD_DATE = "Mon Apr 04 2016 20:30:40 GMT-0700 (PDT)";
+        var CHECKSUM = 9457263157;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -225,7 +225,6 @@ Ext.define("TSTimeInState", {
             listeners: {
                 scope: this,
                 change: function(cb) {
-                    console.log(cb.getValue());
                     this._addStateSelectors(state_chooser_box, cb.getValue());
                 }
             }
@@ -325,13 +324,14 @@ Ext.define("TSTimeInState", {
         Deft.Chain.pipeline([
             function() { return this._setValidStates('HierarchicalRequirement', field_name) },
             function(states) { return this._getChangeSnapshots(field_name, "HierarchicalRequirement"); },
+            this._addProjectsToSnapshots,
             this._organizeSnapshotsByOid,
             function(snaps_by_oid) { return this._setTimeInStatesForAll(snaps_by_oid, field_name); }
         ],this).then({
             scope: this,
             success: function(rows_by_oid) {
                 var rows = Ext.Object.getValues(rows_by_oid);
-                this.logger.log('rows:', rows);
+
                 this._makeGrid(rows);
             },
             failure: function(msg) {
@@ -354,45 +354,45 @@ Ext.define("TSTimeInState", {
         var me = this;
         
         var entries = {};  // date of entry into state, used for calc
+        var last_index = snapshots.length-1;
+        
         var row = {
             snapshots: snapshots,
-            FormattedID: snapshots[snapshots.length - 1].get('FormattedID'),
-            Name: snapshots[snapshots.length - 1].get('Name'),
-            Project: snapshots[snapshots.length - 1].get('Project')
+            FormattedID: snapshots[last_index].get('FormattedID'),
+            Name: snapshots[last_index].get('Name'),
+            Project: snapshots[last_index].get('Project'),
+            __ProjectName: snapshots[last_index].get('__ProjectName'),
+            __Project: snapshots[last_index].get('__Project')
         };
-        
-        this.logger.log(row.FormattedID, row.snapshots);
-        
+                
         Ext.Array.each(this.allowedStates, function(state){
             row[state] = 0;
             entries[state] = null;
+            row['firstEntry_' + state] = null;
+            row['lastExit_' + state] = null;
         });
-        
         
         Ext.Array.each(snapshots,function(snap){
             var in_state = snap.get(field_name);
             var snap_time = snap.get('_ValidFrom');
-            me.logger.log("..Entering", in_state, snap_time);
             
             entries[in_state] = snap_time;
+            row['lastExit_' + in_state] = null; // clear out for re-entry
+            
+            if ( Ext.isEmpty(row['firstEntry_' + in_state]) ) {
+                row['firstEntry_' + in_state] = snap_time;
+            }
             
             var out_state = snap.get('_PreviousValues.' + field_name);
-            me.logger.log("..Leaving", out_state, snap_time);
+
             if ( ! Ext.isEmpty(entries[out_state]) ) {
                 var jsStart = Rally.util.DateTime.fromIsoString(entries[out_state]);
                 var jsEnd   = Rally.util.DateTime.fromIsoString(snap_time);
                 
                 var delta = Rally.util.DateTime.getDifference(jsEnd, jsStart, 'minute');
-                console.log("Change", delta, entries[out_state], snap_time);
+
                 row[out_state] = row[out_state] + delta;
-                entries[in_state] = null;
-            }
-        });
-        
-        row.unexited_states = [];
-        Ext.Object.each(entries, function(key,value) {
-            if ( !Ext.isEmpty(value) ) {
-                row.unexited_states.push(key);
+                row['lastExit_' + out_state] = snap_time;
             }
         });
         
@@ -459,12 +459,61 @@ Ext.define("TSTimeInState", {
         var config = {
             filters: filters,
             fetch: ['ObjectID','FormattedID','Name','Project','_TypeHierarchy','_PreviousValues',field_name,'_PreviousValues.' + field_name],
-            hydrate: ['ScheduleState','Project','_PreviousValues.'+field_name]
+            hydrate: ['ScheduleState','_PreviousValues.'+field_name]
         };
         
         return this._loadSnapshots(config);
     },
     
+    _addProjectsToSnapshots: function(snapshots) {
+        var deferred = Ext.create('Deft.Deferred'),
+            me = this;
+        var project_oids = Ext.Array.map(snapshots, function(snap){ return snap.get('Project')});
+        
+        var unique_project_oids = Ext.Array.unique(project_oids);
+        
+        var filters = Ext.Array.map(unique_project_oids, function(oid) {
+            return { property:'ObjectID', value: oid };
+        });
+        
+        var config = {
+            model: 'Project',
+            filters: Rally.data.wsapi.Filter.or(filters),
+            fetch: ['ObjectID','Name'],
+            limit: Infinity
+        };
+        
+        this.setLoading('Loading Project Names...');
+        
+        this._loadWsapiRecords(config).then({
+            success: function(projects) {
+                var projects_by_oid = {};
+                Ext.Array.each(projects, function(project){
+                    var oid = project.get('ObjectID');
+                    projects_by_oid[oid] = project;
+                });
+                
+                Ext.Array.each(snapshots, function(snap){
+                    var oid = snap.get('Project');
+                    if ( !Ext.isEmpty(projects_by_oid[oid])) {
+                        snap.set('__Project',projects_by_oid[oid].getData());
+                        snap.set('__ProjectName', projects_by_oid[oid].get('Name'));
+                    } else {
+                        snap.set('__Project', {});
+                        snap.set('__ProjectName', "");
+                    }
+                });
+                me.setLoading(false);
+                deferred.resolve(snapshots);
+            },
+            failure: function(msg) {
+                deferred.reject(msg);
+            }
+        });
+        
+        return deferred.promise;
+    },
+
     _loadSnapshots: function(config){
         var deferred = Ext.create('Deft.Deferred');
         var me = this;
@@ -568,7 +617,8 @@ Ext.define("TSTimeInState", {
     _getColumns: function() {
         var columns = [
             { dataIndex: 'FormattedID', text: 'id' },
-            { dataIndex: 'Name', text: 'Name', flex: 1 }
+            { dataIndex: 'Name', text: 'Name', flex: 1 },
+            { dataIndex: '__ProjectName', text:'Project' }
         ];
         
         var show_states = this._getShowStates(this.allowedStates, this.startState, this.endState);
@@ -582,6 +632,18 @@ Ext.define("TSTimeInState", {
                 renderer: function(value, meta, record) {
                     return Ext.Number.toFixed( value / 1440, 2 ); // it's in minutes
                 }
+            });
+            
+            columns.push({
+                dataIndex: 'firstEntry_' + state,
+                text: state + ' first entered',
+                align: 'right'
+            });
+            
+            columns.push({
+                dataIndex: 'lastExit_' + state,
+                text: state + ' last exited',
+                align: 'right'
             });
         });
         return columns;
