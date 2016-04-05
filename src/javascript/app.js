@@ -58,9 +58,24 @@ Ext.define("TSTimeInState", {
         container.add({ 
             xtype:'rallybutton', 
             text: 'Update', 
+            padding: 3,
             listeners: {
                 scope: this,
                 click: this._updateData
+            }
+        });
+        
+        container.add({
+            xtype:'rallybutton',
+            itemId:'export_button',
+            cls: 'secondary small',
+            text: '<span class="icon-export"> </span>',
+            disabled: true,
+            listeners: {
+                scope: this,
+                click: function() {
+                    this._export();
+                }
             }
         });
     },
@@ -134,6 +149,7 @@ Ext.define("TSTimeInState", {
     _updateData: function() {
         var model = 'HierarchicalRequirement';
         var field_name = this.state_field_name;
+        this.down('#export_button').setDisabled(true);
         
         this.startState = this.down('#start_state_selector').getValue();
         this.endState   = this.down('#end_state_selector').getValue();
@@ -404,6 +420,8 @@ Ext.define("TSTimeInState", {
     
     _makeGrid: function(rows){
         this.rows = rows;
+        this.down('#export_button').setDisabled(false);
+
         var container = this.down('#display_box');
         container.removeAll();
         
@@ -438,9 +456,9 @@ Ext.define("TSTimeInState", {
     
     _getColumns: function() {
         var columns = [
-            { dataIndex: 'FormattedID', text: 'id' },
-            { dataIndex: 'Name', text: 'Name', flex: 1 },
-            { dataIndex: '__ProjectName', text:'Project' }
+            { dataIndex: 'FormattedID', text: 'id', width: 75 },
+            { dataIndex: 'Name', text: 'Name', width: 200 },
+            { dataIndex: '__ProjectName', text:'Project', width: 155 }
         ];
         
         var show_states = this._getShowStates(this.allowedStates, this.startState, this.endState);
@@ -452,6 +470,7 @@ Ext.define("TSTimeInState", {
                 text: state,
                 align: 'right',
                 renderer: function(value, meta, record) {
+                    if ( Ext.isEmpty(value) ) { return ""; }
                     return Ext.Number.toFixed( value / 1440, 2 ); // it's in minutes
                 }
             });
@@ -459,16 +478,56 @@ Ext.define("TSTimeInState", {
             columns.push({
                 dataIndex: 'firstEntry_' + state,
                 text: state + ' first entered',
-                align: 'right'
+                align: 'right',
+                renderer: function(value, meta, record) {
+                    if ( Ext.isEmpty(value) ) { return ""; }
+                    return value;
+                }
             });
             
             columns.push({
                 dataIndex: 'lastExit_' + state,
                 text: state + ' last exited',
-                align: 'right'
+                align: 'right',
+                renderer: function(value, meta, record) {
+                    if ( Ext.isEmpty(value) ) { return ""; }
+                    return value;
+                }
             });
         });
         return columns;
+    },
+    
+    _export: function(){
+        var me = this;
+        this.logger.log('_export');
+        
+        var grid = this.down('rallygrid');
+        var rows = this.rows;
+        
+        this.logger.log('number of rows:', rows.length);
+        
+        if ( !grid && !rows ) { return; }
+        
+        var filename = 'time-in-state-report.csv';
+
+        this.logger.log('saving file:', filename);
+        
+        this.setLoading("Generating CSV");
+        Deft.Chain.sequence([
+            function() { return Rally.technicalservices.FileUtilities.getCSVFromRows(this,grid,rows); } 
+        ]).then({
+            scope: this,
+            success: function(csv){
+                this.logger.log('got back csv ', csv.length);
+                if (csv && csv.length > 0){
+                    Rally.technicalservices.FileUtilities.saveCSVToFile(csv,filename);
+                } else {
+                    Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
+                }
+                
+            }
+        }).always(function() { me.setLoading(false); });
     },
     
     getOptions: function() {
