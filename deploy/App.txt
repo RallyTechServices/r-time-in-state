@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Apr 04 2016 19:25:06 GMT-0700 (PDT) -->
+    <!--  Build Date: Mon Apr 04 2016 19:28:36 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Apr 04 2016 19:25:06 GMT-0700 (PDT)";
-        var CHECKSUM = 7766055214;
+        var APP_BUILD_DATE = "Mon Apr 04 2016 19:28:36 GMT-0700 (PDT)";
+        var CHECKSUM = 7871352257;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -547,13 +547,16 @@ Ext.define("TSTimeInState", {
     
     _getShowStates: function(allowed_states, start_state, end_state) {
         var start_index = Ext.Array.indexOf(allowed_states, start_state);
-        var end_index = Ext.Array.indexOf(allowed_states, end_state);
+        var end_index   = Ext.Array.indexOf(allowed_states, end_state);
+        
         // swap if chosen out of order
-        if ( start_index < end_index ) {
+        if ( start_index > end_index ) {
             var holder = start_index;
             start_index = end_index;
             end_index = holder;
         }
+        
+        console.log(start_index, end_index, allowed_states, start_state, end_state);
         
         return ( 
             Ext.Array.filter(allowed_states, function(state,idx) {
@@ -575,6 +578,7 @@ Ext.define("TSTimeInState", {
             columns.push({
                 dataIndex: state,
                 text: state,
+                align: 'right',
                 renderer: function(value, meta, record) {
                     return Ext.Number.toFixed( value / 1440, 2 ); // it's in minutes
                 }

@@ -369,13 +369,16 @@ Ext.define("TSTimeInState", {
     
     _getShowStates: function(allowed_states, start_state, end_state) {
         var start_index = Ext.Array.indexOf(allowed_states, start_state);
-        var end_index = Ext.Array.indexOf(allowed_states, end_state);
+        var end_index   = Ext.Array.indexOf(allowed_states, end_state);
+        
         // swap if chosen out of order
-        if ( start_index < end_index ) {
+        if ( start_index > end_index ) {
             var holder = start_index;
             start_index = end_index;
             end_index = holder;
         }
+        
+        console.log(start_index, end_index, allowed_states, start_state, end_state);
         
         return ( 
             Ext.Array.filter(allowed_states, function(state,idx) {
@@ -397,6 +400,7 @@ Ext.define("TSTimeInState", {
             columns.push({
                 dataIndex: state,
                 text: state,
+                align: 'right',
                 renderer: function(value, meta, record) {
                     return Ext.Number.toFixed( value / 1440, 2 ); // it's in minutes
                 }
