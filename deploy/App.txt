@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Apr 04 2016 20:46:36 GMT-0700 (PDT) -->
+    <!--  Build Date: Tue Apr 05 2016 09:58:40 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Apr 04 2016 20:46:36 GMT-0700 (PDT)";
-        var CHECKSUM = 27044157679;
+        var APP_BUILD_DATE = "Tue Apr 05 2016 09:58:40 GMT-0700 (PDT)";
+        var CHECKSUM = 27445584615;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -658,7 +658,10 @@ Ext.define("TSTimeInState", {
             itemId: 'start_state_selector',
             field: field_name,
             fieldLabel: 'Start State:',
-            labelWidth: label_width
+            labelWidth: label_width,
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-startstatecombo'
         });
         
         container.add({
@@ -667,7 +670,10 @@ Ext.define("TSTimeInState", {
             itemId: 'end_state_selector',
             field: field_name,
             fieldLabel: 'End State:',
-            labelWidth: label_width
+            labelWidth: label_width,
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-endstatecombo'
         });
     },
     

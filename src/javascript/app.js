@@ -91,7 +91,10 @@ Ext.define("TSTimeInState", {
             itemId: 'start_state_selector',
             field: field_name,
             fieldLabel: 'Start State:',
-            labelWidth: label_width
+            labelWidth: label_width,
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-startstatecombo'
         });
         
         container.add({
@@ -100,7 +103,10 @@ Ext.define("TSTimeInState", {
             itemId: 'end_state_selector',
             field: field_name,
             fieldLabel: 'End State:',
-            labelWidth: label_width
+            labelWidth: label_width,
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-endstatecombo'
         });
     },
     
