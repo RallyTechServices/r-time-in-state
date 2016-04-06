@@ -16,6 +16,7 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'artifact_box'},
                 {xtype:'container', itemId:'state_selector_box' },
                 {xtype:'container', itemId:'date_selector_box' },
+                {xtype:'container', itemId:'metric_box' },
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
 
@@ -27,7 +28,7 @@ Ext.define("TSTimeInState", {
     integrationHeaders : {
         name : "TSTimeInState"
     },
-                        
+
     launch: function() {
         var filters = Rally.data.wsapi.Filter.or([
             {property:'TypePath', operator: 'contains',  value: 'PortfolioItem/' },
@@ -73,8 +74,9 @@ Ext.define("TSTimeInState", {
         var state_chooser_box = this.down('#state_selector_box');
         var date_chooser_box  = this.down('#date_selector_box');
         var button_box        = this.down('#button_box');
+        var metric_box        = this.down('#metric_box');
         
-        this._clearBoxes([state_chooser_box, 
+        this._clearBoxes([state_chooser_box, metric_box,
             date_chooser_box, button_box]);
         
         if ( this.down('rallyfieldcombobox') ) {
@@ -100,6 +102,21 @@ Ext.define("TSTimeInState", {
         
         this._addDateSelectors(date_chooser_box);
                 
+        metric_box.add({
+            xtype:'rallycombobox',
+            itemId: 'metric_selector',
+            storeConfig: {
+                data: [{display:'Hours',value: 'Hours'},{display:'Days', value:'Days'}]
+            },
+            storeType: 'Rally.data.custom.Store',
+            displayField: 'display',
+            valueField: 'value',
+            fieldLabel: 'Measure:',
+            labelWidth: 60,
+            stateful: true,
+            stateId: 'techservices-timeinstate-metriccombo',
+            stateEvents:['change']
+        });
         
         button_box.add({
             xtype:'tscolumnpickerbutton',
@@ -686,6 +703,10 @@ Ext.define("TSTimeInState", {
     },
     
     _getColumns: function() {
+        var me = this;
+        
+        var metric = me.down('#metric_selector').getValue();
+        
         var columns = [
             { dataIndex: 'FormattedID', text: 'id', width: 75 },
             { dataIndex: 'Name', text: 'Name', width: 200 },
@@ -701,11 +722,16 @@ Ext.define("TSTimeInState", {
         Ext.Array.each(show_states, function(state) {
             columns.push({
                 dataIndex: state,
-                text: state,
+                text: Ext.String.format('{0} ({1})', state, metric),
                 align: 'right',
                 renderer: function(value, meta, record) {
                     if ( Ext.isEmpty(value) ) { return ""; }
-                    return Ext.Number.toFixed( value / 1440, 2 ); // it's in minutes
+                    
+                    if ( metric == "Days" ) {
+                        return Ext.Number.toFixed( value / 1440, 2 ); // it's in minutes
+                    } 
+                    
+                    return Ext.Number.toFixed( value / 60, 1 );
                 }
             });
             
