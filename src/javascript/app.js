@@ -16,7 +16,16 @@ Ext.define("TSTimeInState", {
     },
                         
     launch: function() {
-        this._addSelectors();
+        this._getModel('HierarchicalRequirement').then({
+            scope: this,
+            success: function(model) {
+                this.model = model;
+                this._addSelectors();
+            }, 
+            failure: function(msg) {
+                Ext.Msg.alert('',msg);
+            }
+        });
     },
     
     _addSelectors: function() {
@@ -55,6 +64,16 @@ Ext.define("TSTimeInState", {
         this._addDateSelectors(date_chooser_box);
         
         container.add({ xtype:'container', flex: 1});
+        
+        container.add({
+            xtype:'tscolumnpickerbutton',
+            cls: 'secondary big',
+            columns: this._getPickableColumns(),
+            stateful: true,
+            stateId: 'techservices-timeinstate-fieldpickerbutton',
+            stateEvents: ['columnsChosen']
+        });
+        
         container.add({ 
             xtype:'rallybutton', 
             text: 'Update', 
@@ -168,7 +187,6 @@ Ext.define("TSTimeInState", {
         this.startDate  = this.down('#start_date_selector').getValue();
         this.endDate    = this.down('#end_date_selector').getValue();
         
-        this.logger.log('start/end state', this.startState, this.endState);
         if ( Ext.isEmpty(this.startState) || Ext.isEmpty(this.endState) ) {
             return;
         }
@@ -208,9 +226,7 @@ Ext.define("TSTimeInState", {
     
     _getRowsAfter: function(rows, start_date) {
         var enter_field = 'firstEntry_' + this.startState;
-        
-        console.log(rows, start_date);
-        
+                
         if ( Ext.isEmpty(start_date) ) {
             return rows;
         }
@@ -254,14 +270,16 @@ Ext.define("TSTimeInState", {
         var entries = {};  // date of entry into state, used for calc
         var last_index = snapshots.length-1;
         
-        var row = {
+        var row = Ext.Object.merge({
             snapshots: snapshots,
-            FormattedID: snapshots[last_index].get('FormattedID'),
-            Name: snapshots[last_index].get('Name'),
-            Project: snapshots[last_index].get('Project'),
-            __ProjectName: snapshots[last_index].get('__ProjectName'),
-            __Project: snapshots[last_index].get('__Project')
-        };
+    //            FormattedID: snapshots[last_index].get('FormattedID'),
+    //            Name: snapshots[last_index].get('Name'),
+    //            Project: snapshots[last_index].get('Project'),
+                __ProjectName: snapshots[last_index].get('__ProjectName'),
+                __Project: snapshots[last_index].get('__Project')
+            }, 
+            snapshots[last_index].getData()
+        );
                 
         Ext.Array.each(this.allowedStates, function(state){
             row[state] = 0;
@@ -353,12 +371,30 @@ Ext.define("TSTimeInState", {
             value: this.getContext().getProject().ObjectID
         });
         
-        var filters = change_into_states_filter.and(model_filter).and(project_filter);
+        var current_filter = Ext.create('Rally.data.lookback.QueryFilter',{
+            property: '__At', 
+            value: 'current' 
+        });
+        
+        
+        var change_filters = change_into_states_filter.and(model_filter).and(project_filter);
+        var current_filters = model_filter.and(project_filter).and(current_filter);
+        
+        var filters = change_filters.or(current_filters);
+        
+        var fetch_base = ['ObjectID','FormattedID','Name',
+            'Project','_TypeHierarchy','_PreviousValues',
+            field_name,'_PreviousValues.' + field_name,
+            'Iteration', 'Release','State'];
+        
+        var fetch_added = Ext.Array.map(this._getPickedColumns(), function(col) {
+            return col.dataIndex;
+        });
         
         var config = {
             filters: filters,
-            fetch: ['ObjectID','FormattedID','Name','Project','_TypeHierarchy','_PreviousValues',field_name,'_PreviousValues.' + field_name],
-            hydrate: ['ScheduleState','_PreviousValues.'+field_name]
+            fetch: Ext.Array.merge(fetch_base, fetch_added),
+            hydrate: ['Iteration','Release','ScheduleState','_PreviousValues.'+field_name,'State']
         };
         
         return this._loadSnapshots(config);
@@ -437,6 +473,20 @@ Ext.define("TSTimeInState", {
         return deferred.promise;
     },
     
+    _getModel: function(model_name) {
+        var deferred = Ext.create('Deft.Deferred');
+        Rally.data.ModelFactory.getModel({
+            type: model_name,
+            success: function(model) {
+                deferred.resolve(model);
+            },
+            failure: function() {
+                deferred.reject('cannot load model');
+            }
+        });
+        return deferred.promise;
+    },
+    
     _loadWsapiRecords: function(config){
         var deferred = Ext.create('Deft.Deferred');
         var me = this;
@@ -449,27 +499,6 @@ Ext.define("TSTimeInState", {
             callback : function(records, operation, successful) {
                 if (successful){
                     deferred.resolve(records);
-                } else {
-                    me.logger.log("Failed: ", operation);
-                    deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
-                }
-            }
-        });
-        return deferred.promise;
-    },
-
-    _loadAStoreWithAPromise: function(model_name, model_fields){
-        var deferred = Ext.create('Deft.Deferred');
-        var me = this;
-        this.logger.log("Starting load:",model_name,model_fields);
-          
-        Ext.create('Rally.data.wsapi.Store', {
-            model: model_name,
-            fetch: model_fields
-        }).load({
-            callback : function(records, operation, successful) {
-                if (successful){
-                    deferred.resolve(this);
                 } else {
                     me.logger.log("Failed: ", operation);
                     deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
@@ -506,13 +535,78 @@ Ext.define("TSTimeInState", {
             end_index = holder;
         }
         
-        console.log(start_index, end_index, allowed_states, start_state, end_state);
-        
         return ( 
             Ext.Array.filter(allowed_states, function(state,idx) {
                 return ( idx >= start_index && idx <= end_index );
             })
         );
+    },
+    
+    _getPickedColumns: function() {
+        if ( Ext.isEmpty( this.down('tscolumnpickerbutton') ) ) {
+            return [];
+        }
+        
+        return this.down('tscolumnpickerbutton').getChosenColumns();
+    },
+    
+    
+    _getPickableColumns: function() {
+
+        var filtered_fields = Ext.Array.filter(this.model.getFields(), function(field){
+            if ( field.hidden ) {
+                return false;
+            }
+            
+            if ( field.name == "FormattedID" || field.name == "Name" ) {
+                return false;
+            }
+            
+            if ( field.name == "Iteration" || field.name == "Release" ) {
+                return true;
+            }
+            
+            var attributeDefn = field.attributeDefinition;
+            if ( Ext.isEmpty(attributeDefn) ) {
+                return false;
+            }
+            
+            if ( attributeDefn.AttributeType == "STRING" ) {
+                return true;
+            }
+            
+            if ( attributeDefn.AttributeType == "DECIMAL" ) {
+                return true;
+            }
+            
+            if ( attributeDefn.AttributeType == "BOOLEAN" ) {
+                return true;
+            }
+            
+            if ( attributeDefn.AttributeType == "QUANTITY" ) {
+                return true;
+            }
+            
+            //console.log(field.name, field);
+            return false;
+        });
+        
+        var object_renderer = function(value, meta, record) {
+            console.log('value:', value);
+            if ( Ext.isEmpty(value) ) { return ""; }
+            if ( Ext.isObject(value) ) { return value.Name || value.DisplayName; }
+            
+            return value;
+        }
+        
+        return Ext.Array.map(filtered_fields, function(field) {
+            return {
+                dataIndex:field.name,
+                text: field.displayName, 
+                hidden: true,
+                renderer: object_renderer
+            };
+        });
     },
     
     _getColumns: function() {
@@ -521,6 +615,8 @@ Ext.define("TSTimeInState", {
             { dataIndex: 'Name', text: 'Name', width: 200 },
             { dataIndex: '__ProjectName', text:'Project', width: 155 }
         ];
+        
+        columns = Ext.Array.push(columns, this._getPickedColumns() );
         
         var show_states = this._getShowStates(this.allowedStates, this.startState, this.endState);
         
