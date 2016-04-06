@@ -17,6 +17,7 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'state_selector_box' },
                 {xtype:'container', itemId:'date_selector_box' },
                 {xtype:'container', itemId:'metric_box' },
+                {xtype:'container', itemId:'project_box'},
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
 
@@ -43,11 +44,17 @@ Ext.define("TSTimeInState", {
             labelWidth: 60,
             listeners: {
                 scope: this,
-                change: function(cb) {
-                    this._getModel(cb.getValue()).then({
+                change: function(cb) {                    
+                    if ( this.process && this.process.getState() == "Pending" ) {
+                        this.process.cancel();
+                    }
+                    
+                    this.process = Deft.Chain.sequence([
+                        function() { return this._getModel(cb.getValue()); }
+                    ],this).then({
                         scope: this,
-                        success: function(model) {
-                            this.model = model;
+                        success: function(results) {
+                            this.model = results[0];
                             this.model_name = cb.getValue();
                             
                             this._addSelectors();
@@ -75,8 +82,9 @@ Ext.define("TSTimeInState", {
         var date_chooser_box  = this.down('#date_selector_box');
         var button_box        = this.down('#button_box');
         var metric_box        = this.down('#metric_box');
+        var project_box       = this.down('#project_box');
         
-        this._clearBoxes([state_chooser_box, metric_box,
+        this._clearBoxes([state_chooser_box, metric_box, project_box,
             date_chooser_box, button_box]);
         
         if ( this.down('rallyfieldcombobox') ) {
@@ -102,6 +110,16 @@ Ext.define("TSTimeInState", {
         
         this._addDateSelectors(date_chooser_box);
                 
+        var project_oid = this.getContext().getProject().ObjectID;
+        
+        metric_box.add({
+            xtype:'rallymultiobjectpicker',
+            itemId: 'project_selector',
+            modelType: 'Project',
+            fieldLabel: 'Project(s):',
+            labelWidth: 60
+        });
+        
         metric_box.add({
             xtype:'rallycombobox',
             itemId: 'metric_selector',
@@ -454,17 +472,28 @@ Ext.define("TSTimeInState", {
             value: this._getModelNameFromModel(model)
         });
         
-        var project_filter = Ext.create('Rally.data.lookback.QueryFilter', {
-            property: '_ProjectHierarchy',
-            value: this.getContext().getProject().ObjectID
-        });
+        var projects = this.down('#project_selector').getValue();
+        
+        var project_filter = null;
+        if ( projects.length > 0 ) {
+            project_filter = Rally.data.lookback.QueryFilter.or(
+                Ext.Array.map(projects, function(p){
+                    return { property: 'Project', value: p.get('ObjectID') }
+                })
+            );
+        } else {
+            project_filter = Ext.create('Rally.data.lookback.QueryFilter', {
+                property: '_ProjectHierarchy',
+                value: this.getContext().getProject().ObjectID
+            });
+        }
         
         var current_filter = Ext.create('Rally.data.lookback.QueryFilter',{
             property: '__At', 
             value: 'current' 
         });
         
-        
+       
         var change_filters = change_into_states_filter.and(model_filter).and(project_filter);
         var current_filters = model_filter.and(project_filter).and(current_filter);
         
