@@ -7,7 +7,20 @@ Ext.define("TSTimeInState", {
     layout: 'border',
     
     items: [
-        {xtype:'container',itemId:'selector_box', region:'north', layout: 'hbox', defaults: { margin: 10 }},
+        {xtype:'container',
+            itemId:'selector_box', 
+            region:'north', 
+            layout: 'hbox', 
+            defaults: { margin: 10, layout: 'vbox' },
+            items: [
+                {xtype:'container', itemId:'artifact_box'},
+                {xtype:'container', itemId:'state_selector_box' },
+                {xtype:'container', itemId:'date_selector_box' },
+                {xtype:'container', flex: 1},
+                {xtype:'container', itemId:'button_box', layout: 'hbox'}
+
+            ]
+        },
         {xtype:'container',itemId:'display_box', region: 'center', layout: 'fit'}
     ],
 
@@ -16,40 +29,64 @@ Ext.define("TSTimeInState", {
     },
                         
     launch: function() {
-        this._getModel('HierarchicalRequirement').then({
-            scope: this,
-            success: function(model) {
-                this.model = model;
-                this._addSelectors();
-            }, 
-            failure: function(msg) {
-                Ext.Msg.alert('',msg);
+        var filters = Rally.data.wsapi.Filter.or([
+            {property:'TypePath', operator: 'contains',  value: 'PortfolioItem/' },
+            {property:'Name', value: 'Defect' },
+            {property:'Name', value: 'Hierarchical Requirement' }
+        ]);
+        this.down('#artifact_box').add({
+            xtype:'tsrecordtypecombobox',
+            fieldLabel: 'Type:',
+            typeFilter: filters,
+
+            labelWidth: 60,
+            listeners: {
+                scope: this,
+                change: function(cb) {
+                    this._getModel(cb.getValue()).then({
+                        scope: this,
+                        success: function(model) {
+                            this.model = model;
+                            this.model_name = cb.getValue();
+                            
+                            this._addSelectors();
+                        }, 
+                        failure: function(msg) {
+                            Ext.Msg.alert('',msg);
+                        }
+                    });
+                }
             }
+        });
+        
+
+    },
+    
+    _clearBoxes: function(containers){
+        Ext.Array.each(containers, function(container){
+            container.removeAll();
         });
     },
     
     _addSelectors: function() {
-        var container = this.down('#selector_box');
-        container.removeAll();
+        var field_chooser_box = this.down('#artifact_box');
+        var state_chooser_box = this.down('#state_selector_box');
+        var date_chooser_box  = this.down('#date_selector_box');
+        var button_box        = this.down('#button_box');
         
-        var field_chooser_box = container.add({
-            xtype:'container'
-        });
+        this._clearBoxes([state_chooser_box, 
+            date_chooser_box, button_box]);
         
-        var state_chooser_box = container.add({
-            xtype:'container',
-            layout: 'vbox'
-        });
-         
-        var date_chooser_box = container.add({
-            xtype:'container',
-            layout: 'vbox'
-        });
+        if ( this.down('rallyfieldcombobox') ) {
+            this.down('rallyfieldcombobox').destroy();
+        }
         
         field_chooser_box.add({
             xtype:'rallyfieldcombobox',
-            model:'HierarchicalRequirement',
+            model:this.model,
             _isNotHidden: this._isNotHidden,
+            fieldLabel: 'State Field:',
+            labelWidth: 60,
             stateful: true,
             stateId: 'techservices-timeinstate-fieldcombo',
             stateEvents:['change'],
@@ -62,10 +99,9 @@ Ext.define("TSTimeInState", {
         });
         
         this._addDateSelectors(date_chooser_box);
+                
         
-        container.add({ xtype:'container', flex: 1});
-        
-        container.add({
+        button_box.add({
             xtype:'tscolumnpickerbutton',
             cls: 'secondary big',
             columns: this._getPickableColumns(),
@@ -74,7 +110,7 @@ Ext.define("TSTimeInState", {
             stateEvents: ['columnsChosen']
         });
         
-        container.add({ 
+        button_box.add({ 
             xtype:'rallybutton', 
             text: 'Update', 
             padding: 3,
@@ -84,7 +120,7 @@ Ext.define("TSTimeInState", {
             }
         });
         
-        container.add({
+        button_box.add({
             xtype:'rallybutton',
             itemId:'export_button',
             cls: 'secondary small',
@@ -106,7 +142,7 @@ Ext.define("TSTimeInState", {
         
         container.add({
             xtype:'rallyfieldvaluecombobox',
-            model: 'HierarchicalRequirement',
+            model: this.model,
             itemId: 'start_state_selector',
             field: field_name,
             fieldLabel: 'Start State:',
@@ -118,7 +154,7 @@ Ext.define("TSTimeInState", {
         
         container.add({
             xtype:'rallyfieldvaluecombobox',
-            model: 'HierarchicalRequirement',
+            model: this.model,
             itemId: 'end_state_selector',
             field: field_name,
             fieldLabel: 'End State:',
@@ -165,6 +201,10 @@ Ext.define("TSTimeInState", {
             return false;
         }
         
+        if ( field.name == "State" ) {
+            return true;
+        }
+        
         if ( attributeDefn.AttributeType == "STATE" ) {
             return true;
         }
@@ -178,12 +218,16 @@ Ext.define("TSTimeInState", {
     },
     
     _updateData: function() {
-        var model = 'HierarchicalRequirement';
+        var model = this.model;
         var field_name = this.state_field_name;
         this.down('#export_button').setDisabled(true);
         
         this.startState = this.down('#start_state_selector').getValue();
         this.endState   = this.down('#end_state_selector').getValue();
+        if ( field_name == "State"  && /Portfolio/.test(this.model_name) ) {
+            this.startState = this.down('#start_state_selector').getRecord().get('name');
+            this.endState   = this.down('#end_state_selector').getRecord().get('name');
+        }
         this.startDate  = this.down('#start_date_selector').getValue();
         this.endDate    = this.down('#end_date_selector').getValue();
         
@@ -192,8 +236,8 @@ Ext.define("TSTimeInState", {
         }
         
         Deft.Chain.pipeline([
-            function() { return this._setValidStates('HierarchicalRequirement', field_name) },
-            function(states) { return this._getChangeSnapshots(field_name, "HierarchicalRequirement"); },
+            function() { return this._setValidStates(this._getModelNameFromModel(this.model), field_name) },
+            function(states) { return this._getChangeSnapshots(field_name, this.model); },
             this._addProjectsToSnapshots,
             this._organizeSnapshotsByOid,
             function(snaps_by_oid) { return this._setTimeInStatesForAll(snaps_by_oid, field_name); }
@@ -315,26 +359,53 @@ Ext.define("TSTimeInState", {
         return row;
     },
     
+    _getModelNameFromModel: function(model) {
+//        var model_name = model.getName();
+//        return model_name.replace(/.*\./,'');
+        return this.model_name;
+    },
+    
     _setValidStates: function(model_name, field_name) {
+        this.logger.log('_setValidStates', model_name);
+        
         var deferred = Ext.create('Deft.Deferred'),
             me = this;
         
-        Rally.data.ModelFactory.getModel({
-            type: model_name,
-            success: function(model) {
-                model.getField(field_name).getAllowedValueStore().load({
-                    callback: function(records, operation, success) {
-                        me.allowedStates = Ext.Array.map(records, function(allowedValue) {
-                            //each record is an instance of the AllowedAttributeValue model 
-                           return allowedValue.get('StringValue');
-                        });
-                        
-                        deferred.resolve(me._allowedStates);
-                    }
-                });
+        this.logger.log('model:', model_name);
+        
+        var store = this.down('rallyfieldvaluecombobox').getStore();
+        var count = store.getTotalCount();
+        
+        var values = [];
+        for ( var i=0; i<count; i++ ) {
+            var value = store.getAt(i);
+            
+            if ( !Ext.isEmpty(value.get('value'))) {
+                values.push(value.get('name'));
             }
-        });
-        return deferred.promise;
+        }
+        this.logger.log('allowedStates', values);
+        me.allowedStates = values;
+        
+        return values;
+        
+//        this.model.getField(field_name).getAllowedValueStore().load({
+//            sorters: [{
+//                    property: 'ValueIndex',
+//                    direction: 'ASC'
+//            }],
+//            callback: function(records, operation, success) {
+//                me.allowedStates = Ext.Array.map(records, function(allowedValue) {
+//                    console.log('---', records);
+//                    //each record is an instance of the AllowedAttributeValue model 
+//                   return allowedValue.get('StringValue');
+//                });
+//                
+//                deferred.resolve(me.allowedStates);
+//            }
+//        });
+
+//        return deferred.promise;
     },
     
     _organizeSnapshotsByOid: function(snapshots) {
@@ -363,7 +434,7 @@ Ext.define("TSTimeInState", {
         
         var model_filter = Ext.create('Rally.data.lookback.QueryFilter', {
             property: '_TypeHierarchy',
-            value: model
+            value: this._getModelNameFromModel(model)
         });
         
         var project_filter = Ext.create('Rally.data.lookback.QueryFilter', {
@@ -394,7 +465,7 @@ Ext.define("TSTimeInState", {
         var config = {
             filters: filters,
             fetch: Ext.Array.merge(fetch_base, fetch_added),
-            hydrate: ['Iteration','Release','ScheduleState','_PreviousValues.'+field_name,'State']
+            hydrate: ['Iteration','Release','_PreviousValues.'+field_name,'State',field_name]
         };
         
         return this._loadSnapshots(config);
@@ -405,6 +476,9 @@ Ext.define("TSTimeInState", {
             me = this;
         var project_oids = Ext.Array.map(snapshots, function(snap){ return snap.get('Project')});
         
+        if ( project_oids.length === 0 ) {
+            return snapshots;
+        }
         var unique_project_oids = Ext.Array.unique(project_oids);
         
         var filters = Ext.Array.map(unique_project_oids, function(oid) {
@@ -525,6 +599,8 @@ Ext.define("TSTimeInState", {
     },
     
     _getShowStates: function(allowed_states, start_state, end_state) {
+        this.logger.log('_getShowStates', start_state, end_state);
+        
         var start_index = Ext.Array.indexOf(allowed_states, start_state);
         var end_index   = Ext.Array.indexOf(allowed_states, end_state);
         
@@ -620,6 +696,8 @@ Ext.define("TSTimeInState", {
         
         var show_states = this._getShowStates(this.allowedStates, this.startState, this.endState);
         
+        this.logger.log('show states', show_states);
+        
         Ext.Array.each(show_states, function(state) {
             columns.push({
                 dataIndex: state,
@@ -651,6 +729,8 @@ Ext.define("TSTimeInState", {
                 }
             });
         });
+        
+        this.logger.log('columns:', columns);
         return columns;
     },
     
