@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Fri Apr 08 2016 10:01:50 GMT-0700 (PDT) -->
+    <!--  Build Date: Fri Apr 08 2016 16:34:35 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Apr 08 2016 10:01:50 GMT-0700 (PDT)";
-        var CHECKSUM = 67159952644;
+        var APP_BUILD_DATE = "Fri Apr 08 2016 16:34:35 GMT-0700 (PDT)";
+        var CHECKSUM = 92619244438;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -819,6 +819,363 @@ Ext.define('CA.technicalservices.ColumnPickerButton',{
         });
     }
 });
+Ext.define('CA.technicalservices.ProjectPickerDialog',{
+    extend: 'Rally.ui.dialog.Dialog',
+    alias: 'widget.tsprojectpickerdialog',
+    
+    width: 300,
+    closable: true,
+    
+    selectedRecords: [],
+    
+    config: {
+        /**
+         * @cfg {String}
+         * Title to give to the dialog
+         */
+        title: 'Choose Project',
+
+        selectionButtonText: 'Add'
+        
+    },
+    
+    items: [{
+        xtype: 'panel',
+        border: false,
+        items: [{
+            xtype:'container', 
+            itemId:'grid_container',
+            layout: 'fit',
+            height: 200
+            
+        }]
+    }],
+
+    constructor: function(config) {
+        this.mergeConfig(config);
+
+        this.callParent([this.config]);
+    },
+
+    initComponent: function() {
+        this.callParent(arguments);
+        this.addEvents(
+            /**
+             * @event projectchosen
+             * Fires when user clicks done after choosing project
+             * @param {CA.technicalservices.ProjectPickerDialog} this dialog
+             * @param [{Object}] projects (project.getData, not the model)
+             */
+            'projectschosen'
+        );
+        
+        this._buildButtons();
+        this._buildDisplayBar();
+        this._updateDisplay();
+        this._buildTree();
+    },
+    
+    _buildDisplayBar: function() {
+        this.down('panel').addDocked({
+            xtype:'container',
+            dock: 'top',
+            padding: '0 0 10 0',
+            layout: 'hbox',
+            items: [ {
+                xtype:'container',
+                itemId: 'displayBox', 
+                height: 50,
+                autoScroll: true
+            } ]
+        });
+    },
+    
+    getDisplayTemplate: function() {
+        return new Ext.XTemplate(
+            '<tpl for=".">',
+                '<span class="project-box" id="s{ObjectID}">{Name}</span>',
+            '</tpl>'
+        );
+    },
+    
+    _updateDisplay: function() {
+        var container = this.down('#displayBox');
+        container.removeAll();
+        
+        var sorted_array = Ext.Array.sort(this.selectedRecords, function(a,b) {
+            if ( a.Name < b.Name ) { return -1; }
+            if ( a.Name > b.Name ) { return 1; }
+            return 0;
+        });
+        
+        Ext.Array.each(sorted_array, function(record,idx){
+            container.add({
+                xtype:'button',
+                cls: 'project-button',
+                text: "<span class='icon-delete'></span> " + record.Name,
+                listeners: {
+                    scope: this, 
+                    click: function() {
+                        this._removeItem(record);
+                    }
+                }
+            });
+        },this);
+    },
+    
+    _removeItem: function(item) {
+        this.selectedRecords = Ext.Array.remove(this.selectedRecords, item);
+        this._updateDisplay();
+    },
+    
+    _buildButtons: function() {
+        this.down('panel').addDocked({
+            xtype: 'toolbar',
+            dock: 'bottom',
+            padding: '0 0 10 0',
+            layout: {
+                type: 'hbox',
+                pack: 'center'
+            },
+            ui: 'footer',
+            items: [
+                {
+                    xtype: 'rallybutton',
+                    text: this.selectionButtonText,
+                    cls: 'primary small',
+                    scope: this,
+                    userAction: 'clicked done in dialog',
+                    handler: function() {
+                        this.fireEvent('projectschosen', this, this.selectedRecords);
+                        this.close();
+                    }
+                },
+                {
+                    xtype: 'rallybutton',
+                    text: 'Cancel',
+                    cls: 'secondary small',
+                    handler: this.close,
+                    scope: this,
+                    ui: 'link'
+                }
+            ]
+        });
+    },
+    
+    _addRecordToSelectedRecords: function(record) {
+        if ( Ext.isFunction(record.getData ) ) {
+            record = record.getData();
+        }
+        
+        // unique by objectID
+        var record_hash = {};
+        Ext.Array.each( Ext.Array.push(this.selectedRecords, [record] ), function(item) {
+            record_hash[item.ObjectID] = item;
+        });
+        
+        this.selectedRecords = Ext.Object.getValues(record_hash);
+        this._updateDisplay();
+    },
+    
+    _buildTree: function() {
+        
+        this.tree = Ext.create('Rally.ui.tree.ProjectTree',{
+            workspace: Rally.getApp().getContext().getWorkspaceRef(),
+            autoScroll: true,
+            listeners: {
+                scope: this,
+                itemselected: function(item) {
+                    this._addRecordToSelectedRecords(item.record);
+                }
+            }
+        });
+        
+        this.down('#grid_container').add(this.tree);
+    },
+    
+    _getGridColumns: function() {
+        return [
+            { dataIndex: 'Name', flex: 1 }
+        ];
+    }
+});
+Ext.define('CA.techservices.picker.MultipleProjectPicker',{
+    extend: 'Ext.container.Container',
+    alias: 'widget.tsmultiprojectpicker',
+    
+    margin: 0,
+    layout: 'hbox',
+    
+    items: [
+        {xtype:'container',itemId:'buttonBox'}
+    ],
+    
+    config: {
+        buttonText: '<span class="icon-shared"></span> +',
+        /**
+         * 
+         * @param Number displayLimit
+         * 
+         * The number of projects to display after choosing.
+         */
+        displayLimit: 25, 
+        
+        selectedRecords: [],
+        /**
+         * 
+         * @param Boolean showProjectNames
+         * 
+         * if true, show button AND list of chosen project names (up to number of displayLimit)
+         */
+        showProjectNames: true
+    },
+    
+    getState: function() {
+        var me = this,
+            state = null,
+            sizeModel = me.getSizeModel();
+
+        if (sizeModel.width.configured) {
+            state = me.addPropertyToState(state, 'width');
+        }
+        if (sizeModel.height.configured) {
+            state = me.addPropertyToState(state, 'height');
+        }
+        
+        state = me.addPropertyToState(state, 'selectedRecords',  me.selectedRecords);
+
+        return state;
+    },
+    
+//    applyState: function(state) {
+//        this.callParent(arguments);
+//        if(state.hasOwnProperty('value')) {
+//            this.setValue(state.value);
+//        }
+//        
+//        //this.selectedRecords = [];
+//        console.log('--applyState', state);
+//    },
+    
+    constructor:function (config) {
+        this.mergeConfig(config);
+
+        this.callParent([this.config]);
+    },
+    
+    initComponent: function() {
+        this.callParent(arguments);
+        this.addEvents(
+            /**
+             * @event projectschosen
+             * Fires when user clicks done after choosing projects
+             * @param {CA.techservices.picker.MultipleProjectPicker} this selector
+             * @param [{Ext.data.wsapi.model}] projects selected
+             */
+            'change'
+        );
+        
+        if ( this.showProjectNames ) {
+            this.add({   
+                xtype:'container',
+                itemId:'messageBox', 
+                layout:'column',
+                autoScroll: true,
+                height: 50
+            });
+        }
+        this._displayButton();
+        this._updateDisplay();
+        this.on('staterestore',this._updateDisplay, this, { single: true } );
+    },
+    
+    _updateDisplay: function() {        
+        if ( this.down('#projectSelectorButton') ) {
+            var text = this.buttonText;
+            if (this.selectedRecords.length > 0 ) {
+                text = this.selectedRecords.length + " " + text;
+            }
+            this.down('#projectSelectorButton').setText(text);
+        }
+        if ( ! this.showProjectNames ) {
+            return;
+        }
+        
+        var sorted_array = Ext.Array.sort(this.selectedRecords, function(a,b) {
+            if ( a.Name < b.Name ) { return -1; }
+            if ( a.Name > b.Name ) { return 1; }
+            return 0;
+        });
+        
+        var container = this.down('#messageBox');
+        container.removeAll();
+        
+        Ext.Array.each(sorted_array, function(record,idx){
+            
+            if ( idx<this.displayLimit ) {
+                container.add({
+                    xtype:'button',
+                    cls: 'project-button',
+                    text: record.Name + " <span class='icon-delete'></span>",
+                    listeners: {
+                        scope: this, 
+                        click: function() {
+                            this._removeItem(record);
+                        }
+                    }
+                });
+            }
+        },this);
+        
+        if ( this.selectedRecords.length > this.displayLimit ) {
+            container.add({
+                xtype:'container',
+                cls: 'project-button',
+                html: '...and others'
+            });
+        }
+    },
+    
+    _removeItem: function(record) {
+        this.selectedRecords = Ext.Array.remove(this.selectedRecords, record);
+        this.fireEvent('change', this, this.selectedRecords);
+        this._updateDisplay();
+    },
+    
+    getValue: function() {
+        return this.selectedRecords || [];
+    },
+    
+    _displayButton: function() {
+        this.down('#buttonBox').add({
+            xtype:'rallybutton',
+            cls: 'secondary',
+            itemId:'projectSelectorButton',
+            text: this.buttonText,
+            toolTipText: 'Add Projects',
+            listeners: {
+                scope: this,
+                click: this._showProjectPicker
+            }
+        });
+    },
+    
+    _showProjectPicker: function() {
+        Ext.create('CA.technicalservices.ProjectPickerDialog',{
+            autoShow: true,
+            selectedRecords: this.selectedRecords,
+            listeners: {
+                scope: this,
+                projectschosen: function(dialog, selectedRecords) {
+                    this.selectedRecords = selectedRecords;
+                    this.fireEvent('change', this, this.selectedRecords);
+                    this._updateDisplay();
+                }
+            }
+        });
+    }
+    
+});
 Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
 
     extend: 'Rally.ui.combobox.ComboBox',
@@ -1110,14 +1467,6 @@ Ext.define("TSTimeInState", {
         var project_oid = this.getContext().getProject().ObjectID;
         
         metric_box.add({
-            xtype:'rallymultiobjectpicker',
-            itemId: 'project_selector',
-            modelType: 'Project',
-            fieldLabel: 'Project(s):',
-            labelWidth: 60
-        });
-        
-        metric_box.add({
             xtype:'rallycombobox',
             itemId: 'metric_selector',
             storeConfig: {
@@ -1134,9 +1483,21 @@ Ext.define("TSTimeInState", {
         });
         
         button_box.add({
+            xtype:'tsmultiprojectpicker',
+            itemId: 'project_selector',
+            workspace: this.getContext().getWorkspaceRef(),
+            showProjectNames: false,
+            margin: '10 0 0 3',
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-fieldpickerbutton'
+        });
+        
+        button_box.add({
             xtype:'tscolumnpickerbutton',
             cls: 'secondary big',
             columns: this._getPickableColumns(),
+            margin: '10 5 0 0',
             stateful: true,
             stateId: 'techservices-timeinstate-fieldpickerbutton',
             stateEvents: ['columnsChosen']
@@ -1146,6 +1507,7 @@ Ext.define("TSTimeInState", {
             xtype:'rallybutton', 
             text: 'Update', 
             padding: 3,
+            margin: '10 0 0 5',
             listeners: {
                 scope: this,
                 click: this._updateData
@@ -1157,6 +1519,7 @@ Ext.define("TSTimeInState", {
             itemId:'export_button',
             cls: 'secondary small',
             text: '<span class="icon-export"> </span>',
+            margin: '10 0 0 5',
             disabled: true,
             listeners: {
                 scope: this,
@@ -1475,7 +1838,7 @@ Ext.define("TSTimeInState", {
         if ( projects.length > 0 ) {
             project_filter = Rally.data.lookback.QueryFilter.or(
                 Ext.Array.map(projects, function(p){
-                    return { property: 'Project', value: p.get('ObjectID') }
+                    return { property: 'Project', value: p.ObjectID }
                 })
             );
         } else {
@@ -1870,6 +2233,27 @@ Ext.define("TSTimeInState", {
     margin-top: 25px;
     margin-right: 5px;
     cursor: pointer;
+}
+.project-box {
+    font: 9px arial, sans-serif !important;
+    background-color: #D3D3D3;
+    color: black;
+    border: 1px solid black;
+    padding: 3px;
+    margin: 3px;
+}
+
+.project-button {
+    font: 9px arial, sans-serif !important;
+    background-color: #fff;
+    color: black;
+    border: none;
+    padding: 3px;
+}
+
+.project-button.x-btn-default-small .x-btn-inner {
+    font: 9px arial, sans-serif !important;
+    color: black;
 }
     </style>
 

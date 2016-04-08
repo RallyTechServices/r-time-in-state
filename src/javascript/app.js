@@ -113,14 +113,6 @@ Ext.define("TSTimeInState", {
         var project_oid = this.getContext().getProject().ObjectID;
         
         metric_box.add({
-            xtype:'rallymultiobjectpicker',
-            itemId: 'project_selector',
-            modelType: 'Project',
-            fieldLabel: 'Project(s):',
-            labelWidth: 60
-        });
-        
-        metric_box.add({
             xtype:'rallycombobox',
             itemId: 'metric_selector',
             storeConfig: {
@@ -137,9 +129,21 @@ Ext.define("TSTimeInState", {
         });
         
         button_box.add({
+            xtype:'tsmultiprojectpicker',
+            itemId: 'project_selector',
+            workspace: this.getContext().getWorkspaceRef(),
+            showProjectNames: false,
+            margin: '10 0 0 3',
+            stateful: true,
+            stateEvents: ['change'],
+            stateId: 'techservices-timeinstate-fieldpickerbutton'
+        });
+        
+        button_box.add({
             xtype:'tscolumnpickerbutton',
             cls: 'secondary big',
             columns: this._getPickableColumns(),
+            margin: '10 5 0 0',
             stateful: true,
             stateId: 'techservices-timeinstate-fieldpickerbutton',
             stateEvents: ['columnsChosen']
@@ -149,6 +153,7 @@ Ext.define("TSTimeInState", {
             xtype:'rallybutton', 
             text: 'Update', 
             padding: 3,
+            margin: '10 0 0 5',
             listeners: {
                 scope: this,
                 click: this._updateData
@@ -160,6 +165,7 @@ Ext.define("TSTimeInState", {
             itemId:'export_button',
             cls: 'secondary small',
             text: '<span class="icon-export"> </span>',
+            margin: '10 0 0 5',
             disabled: true,
             listeners: {
                 scope: this,
@@ -478,7 +484,7 @@ Ext.define("TSTimeInState", {
         if ( projects.length > 0 ) {
             project_filter = Rally.data.lookback.QueryFilter.or(
                 Ext.Array.map(projects, function(p){
-                    return { property: 'Project', value: p.get('ObjectID') }
+                    return { property: 'Project', value: p.ObjectID }
                 })
             );
         } else {
