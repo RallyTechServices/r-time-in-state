@@ -26,7 +26,7 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
         }],
         
         valueField: 'TypePath',
-        displayField: 'Name'
+        displayField: 'DisplayName'
     },
     
     constructor: function(config) {
@@ -36,7 +36,6 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
         if ( Ext.isObject( config.typeFilter ) ) {
             config.typeFilter = [config.typeFilter];
         }
-        
         
         var defaultConfig = {
             defaultSelectionPosition: 'last',
@@ -49,7 +48,12 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
                 remoteFilter: true,
                 model: Ext.identityFn('TypeDefinition'),
                 sorters: config.typeSorter,
-                filters: config.typeFilter
+                filters: config.typeFilter,
+                listeners: {
+                    load: function(store,records){
+                        console.log('types:', records);
+                    }
+                }
             }
         };
 

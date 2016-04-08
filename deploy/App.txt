@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Apr 06 2016 13:07:44 GMT-0700 (PDT) -->
+    <!--  Build Date: Fri Apr 08 2016 10:01:50 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Apr 06 2016 13:07:44 GMT-0700 (PDT)";
-        var CHECKSUM = 66870656129;
+        var APP_BUILD_DATE = "Fri Apr 08 2016 10:01:50 GMT-0700 (PDT)";
+        var CHECKSUM = 67159952644;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -847,7 +847,7 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
         }],
         
         valueField: 'TypePath',
-        displayField: 'Name'
+        displayField: 'DisplayName'
     },
     
     constructor: function(config) {
@@ -857,7 +857,6 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
         if ( Ext.isObject( config.typeFilter ) ) {
             config.typeFilter = [config.typeFilter];
         }
-        
         
         var defaultConfig = {
             defaultSelectionPosition: 'last',
@@ -870,7 +869,12 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
                 remoteFilter: true,
                 model: Ext.identityFn('TypeDefinition'),
                 sorters: config.typeSorter,
-                filters: config.typeFilter
+                filters: config.typeFilter,
+                listeners: {
+                    load: function(store,records){
+                        console.log('types:', records);
+                    }
+                }
             }
         };
 
