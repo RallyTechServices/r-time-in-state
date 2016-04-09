@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Fri Apr 08 2016 16:34:35 GMT-0700 (PDT) -->
+    <!--  Build Date: Fri Apr 08 2016 17:18:30 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Apr 08 2016 16:34:35 GMT-0700 (PDT)";
-        var CHECKSUM = 92619244438;
+        var APP_BUILD_DATE = "Fri Apr 08 2016 17:18:30 GMT-0700 (PDT)";
+        var CHECKSUM = 97878027434;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -1352,6 +1352,91 @@ Ext.define('Rally.ui.combobox.PortfolioItemTypeComboBox', {
         return this.store.findRecord(this.valueField, pref);
     }
 });
+Ext.define('CA.techservices.ToggleButton', {
+    extend: Ext.Container ,
+    alias:'widget.tstogglebutton',
+
+    componentCls: 'rui-gridboard-toggle toggle-button-group',
+    layout: 'hbox',
+    border: 1,
+    activeButtonCls: 'rly-active hide-tooltip',
+
+    toggleState: 'Hours',
+
+    defaultType: 'rallybutton',
+    items: [
+        {
+            itemId: 'Hours',
+            cls: 'toggle rly-left',
+            frame: false,
+            text: 'H',
+            toolTipConfig: {
+                html: 'Switch to Hours View',
+                anchor: 'top',
+                hideDelay: 0,
+                constrainPosition: false,
+                anchorOffset: 45,
+                mouseOffset: [-45, 0]
+            }
+        },
+        {
+            itemId: 'Days',
+            cls: 'toggle rly-right',
+            frame: false,
+            text: 'D',
+            toolTipConfig: {
+                html: 'Switch to Days View',
+                anchor: 'top',
+                hideDelay: 0,
+                constrainPosition: false,
+                anchorOffset: 65,
+                mouseOffset: [-65, 0]
+            }
+        }
+    ],
+
+    initComponent: function() {
+        this.callParent(arguments);
+
+        this.addEvents([
+            /**
+             * @event toggle
+             * Fires when the toggle value is changed.
+             * @param {String} toggleState 'Hours' or 'Days'.
+             */
+            'toggle'
+        ]);
+
+        this.items.each(function(item) {
+            this.mon(item, 'click', this._onButtonClick, this);
+        }, this);
+
+        this.down('#' + this.toggleState).addCls(this.activeButtonCls);
+    },
+
+    _onButtonClick: function(btn) {
+        var btnId = btn.getItemId();
+        if (btnId !== this.toggleState) {
+            this.toggleState = btnId;
+
+            this.items.each(function(item) {
+                if (item === btn) {
+                    if (!item.hasCls(this.activeButtonCls.split(' ')[0])) {
+                        item.addCls(this.activeButtonCls);
+                    }
+                } else {
+                    item.removeCls(this.activeButtonCls);
+                }
+            }, this);
+
+            this.fireEvent('toggle', this, this.toggleState);
+        }
+    },
+    
+    getValue: function() {
+        return this.toggleState;
+    }
+});
 Ext.define("TSTimeInState", {
     extend: 'Rally.app.App',
     componentCls: 'app',
@@ -1370,7 +1455,7 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'artifact_box'},
                 {xtype:'container', itemId:'state_selector_box' },
                 {xtype:'container', itemId:'date_selector_box' },
-                {xtype:'container', itemId:'metric_box' },
+                {xtype:'container', itemId:'metric_box', layout: 'column', align: 'center', width: 90},
                 {xtype:'container', itemId:'project_box'},
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
@@ -1467,40 +1552,35 @@ Ext.define("TSTimeInState", {
         var project_oid = this.getContext().getProject().ObjectID;
         
         metric_box.add({
-            xtype:'rallycombobox',
-            itemId: 'metric_selector',
-            storeConfig: {
-                data: [{display:'Hours',value: 'Hours'},{display:'Days', value:'Days'}]
-            },
-            storeType: 'Rally.data.custom.Store',
-            displayField: 'display',
-            valueField: 'value',
-            fieldLabel: 'Measure:',
-            labelWidth: 60,
-            stateful: true,
-            stateId: 'techservices-timeinstate-metriccombo',
-            stateEvents:['change']
-        });
-        
-        button_box.add({
             xtype:'tsmultiprojectpicker',
             itemId: 'project_selector',
             workspace: this.getContext().getWorkspaceRef(),
             showProjectNames: false,
-            margin: '10 0 0 3',
+            margin: 0,
             stateful: true,
             stateEvents: ['change'],
             stateId: 'techservices-timeinstate-fieldpickerbutton'
         });
         
-        button_box.add({
+        metric_box.add({
             xtype:'tscolumnpickerbutton',
             cls: 'secondary big',
             columns: this._getPickableColumns(),
-            margin: '10 5 0 0',
+            margin: 0,
+            toolTipText: 'Add Columns',
             stateful: true,
             stateId: 'techservices-timeinstate-fieldpickerbutton',
             stateEvents: ['columnsChosen']
+        });
+        
+        metric_box.add({
+            xtype: 'tstogglebutton',
+            toggleState: 'Hours',
+            itemId: 'metric_selector',
+            margin: '3 0 0 7',
+            stateful: true,
+            stateId: 'techservices-timeinstate-metriccombo',
+            stateEvents:['change']
         });
         
         button_box.add({ 

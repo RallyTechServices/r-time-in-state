@@ -1,10 +1,29 @@
 #TS Time In State
 
+![Time in State](./images/time-in-state.png)
+
 An app to show a series of stories and the time spent in each "state".  A field is chosen by the user to represent state.  The user selects a beginning and end value from the valid dropdowns for that particular field and the app will calculate how much time is spent in each state.
 
 If an item enters and leaves and enters and leaves the same state, the time in state is the sum of all time in that state.
 
 If the user selects a date range, then the app will only show items that entered the first selected state within that range for the very first time.  If the user picks 1 Jan 2015 to 1 Feb 2015 and the item entered the first state in december, then it will not show, even if that item left the state and entered it again in January. 
+
+The app allows for the selection individual projects.  If this option is chosen, the app will look for history in those projects only.  Otherwise, the app will look in the current project and its children.  
+
+![Project Button](./images/add-projects-button.png)
+
+![Project Popup](./images/add-projects-popup.png)
+
+The selected projects show in the upper portion of the popup.  Click on a project name to remove it.
+
+A limited set of columns can be added using the column button:
+
+![Column Button](./images/add-column-button.png)
+
+The time in state will be shown as a number of days or hours depending on the day/hour switch:
+
+![Metric Button](./images/metric-button.png)
+
 
 ## Development Notes
 

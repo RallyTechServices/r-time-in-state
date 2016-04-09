@@ -16,7 +16,7 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'artifact_box'},
                 {xtype:'container', itemId:'state_selector_box' },
                 {xtype:'container', itemId:'date_selector_box' },
-                {xtype:'container', itemId:'metric_box' },
+                {xtype:'container', itemId:'metric_box', layout: 'column', align: 'center', width: 90},
                 {xtype:'container', itemId:'project_box'},
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
@@ -113,40 +113,35 @@ Ext.define("TSTimeInState", {
         var project_oid = this.getContext().getProject().ObjectID;
         
         metric_box.add({
-            xtype:'rallycombobox',
-            itemId: 'metric_selector',
-            storeConfig: {
-                data: [{display:'Hours',value: 'Hours'},{display:'Days', value:'Days'}]
-            },
-            storeType: 'Rally.data.custom.Store',
-            displayField: 'display',
-            valueField: 'value',
-            fieldLabel: 'Measure:',
-            labelWidth: 60,
-            stateful: true,
-            stateId: 'techservices-timeinstate-metriccombo',
-            stateEvents:['change']
-        });
-        
-        button_box.add({
             xtype:'tsmultiprojectpicker',
             itemId: 'project_selector',
             workspace: this.getContext().getWorkspaceRef(),
             showProjectNames: false,
-            margin: '10 0 0 3',
+            margin: 0,
             stateful: true,
             stateEvents: ['change'],
             stateId: 'techservices-timeinstate-fieldpickerbutton'
         });
         
-        button_box.add({
+        metric_box.add({
             xtype:'tscolumnpickerbutton',
             cls: 'secondary big',
             columns: this._getPickableColumns(),
-            margin: '10 5 0 0',
+            margin: 0,
+            toolTipText: 'Add Columns',
             stateful: true,
             stateId: 'techservices-timeinstate-fieldpickerbutton',
             stateEvents: ['columnsChosen']
+        });
+        
+        metric_box.add({
+            xtype: 'tstogglebutton',
+            toggleState: 'Hours',
+            itemId: 'metric_selector',
+            margin: '3 0 0 7',
+            stateful: true,
+            stateId: 'techservices-timeinstate-metriccombo',
+            stateEvents:['change']
         });
         
         button_box.add({ 
