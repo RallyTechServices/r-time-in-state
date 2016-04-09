@@ -16,7 +16,7 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'artifact_box'},
                 {xtype:'container', itemId:'state_selector_box' },
                 {xtype:'container', itemId:'date_selector_box' },
-                {xtype:'container', itemId:'metric_box', layout: 'column', align: 'center', width: 90},
+                {xtype:'container', itemId:'metric_box', layout: 'column', align: 'center', width: 110},
                 {xtype:'container', itemId:'project_box'},
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
@@ -120,7 +120,7 @@ Ext.define("TSTimeInState", {
             margin: 0,
             stateful: true,
             stateEvents: ['change'],
-            stateId: 'techservices-timeinstate-fieldpickerbutton'
+            stateId: 'techservices-timeinstate-projectpickerbutton'
         });
         
         metric_box.add({
@@ -138,7 +138,7 @@ Ext.define("TSTimeInState", {
             xtype: 'tstogglebutton',
             toggleState: 'Hours',
             itemId: 'metric_selector',
-            margin: '3 0 0 7',
+            margin: '3 0 0 0',
             stateful: true,
             stateId: 'techservices-timeinstate-metriccombo',
             stateEvents:['change']

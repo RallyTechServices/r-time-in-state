@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Fri Apr 08 2016 17:18:30 GMT-0700 (PDT) -->
+    <!--  Build Date: Fri Apr 08 2016 17:28:27 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Apr 08 2016 17:18:30 GMT-0700 (PDT)";
-        var CHECKSUM = 97878027434;
+        var APP_BUILD_DATE = "Fri Apr 08 2016 17:28:27 GMT-0700 (PDT)";
+        var CHECKSUM = 97890809386;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -1455,7 +1455,7 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'artifact_box'},
                 {xtype:'container', itemId:'state_selector_box' },
                 {xtype:'container', itemId:'date_selector_box' },
-                {xtype:'container', itemId:'metric_box', layout: 'column', align: 'center', width: 90},
+                {xtype:'container', itemId:'metric_box', layout: 'column', align: 'center', width: 110},
                 {xtype:'container', itemId:'project_box'},
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
@@ -1559,7 +1559,7 @@ Ext.define("TSTimeInState", {
             margin: 0,
             stateful: true,
             stateEvents: ['change'],
-            stateId: 'techservices-timeinstate-fieldpickerbutton'
+            stateId: 'techservices-timeinstate-projectpickerbutton'
         });
         
         metric_box.add({
@@ -1577,7 +1577,7 @@ Ext.define("TSTimeInState", {
             xtype: 'tstogglebutton',
             toggleState: 'Hours',
             itemId: 'metric_selector',
-            margin: '3 0 0 7',
+            margin: '3 0 0 0',
             stateful: true,
             stateId: 'techservices-timeinstate-metriccombo',
             stateEvents:['change']
