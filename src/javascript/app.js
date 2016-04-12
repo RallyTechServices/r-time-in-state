@@ -20,7 +20,6 @@ Ext.define("TSTimeInState", {
                 {xtype:'container', itemId:'project_box'},
                 {xtype:'container', flex: 1},
                 {xtype:'container', itemId:'button_box', layout: 'hbox'}
-
             ]
         },
         {xtype:'container',itemId:'display_box', region: 'center', layout: 'fit'}
@@ -472,16 +471,16 @@ Ext.define("TSTimeInState", {
             property: '_TypeHierarchy',
             value: this._getModelNameFromModel(model)
         });
-        
+                
         var projects = this.down('#project_selector').getValue();
         
         var project_filter = null;
         if ( projects.length > 0 ) {
-            project_filter = Rally.data.lookback.QueryFilter.or(
-                Ext.Array.map(projects, function(p){
-                    return { property: 'Project', value: p.ObjectID }
-                })
-            );
+            project_filter = Ext.create('Rally.data.lookback.QueryFilter', {
+                property:'Project',
+                operator: 'in',
+                value: Ext.Array.map(projects, function(p){  return p.ObjectID; })
+            });
         } else {
             project_filter = Ext.create('Rally.data.lookback.QueryFilter', {
                 property: '_ProjectHierarchy',
@@ -495,10 +494,15 @@ Ext.define("TSTimeInState", {
         });
         
        
-        var change_filters = change_into_states_filter.and(model_filter).and(project_filter);
-        var current_filters = model_filter.and(project_filter).and(current_filter);
+        var change_filters = change_into_states_filter.and(model_filter);
+        var current_filters = model_filter.and(current_filter);
+        
+        console.log('change_filters', change_filters.toObject());
+        console.log('current_filters', current_filters.toObject());
         
         var filters = change_filters.or(current_filters);
+        
+        console.log('filters:', filters.toObject());
         
         var fetch_base = ['ObjectID','FormattedID','Name',
             'Project','_TypeHierarchy','_PreviousValues',
@@ -510,7 +514,7 @@ Ext.define("TSTimeInState", {
         });
         
         var config = {
-            filters: filters,
+            filters: filters.and(project_filter),
             fetch: Ext.Array.merge(fetch_base, fetch_added),
             hydrate: ['Iteration','Release','_PreviousValues.'+field_name,'State',field_name]
         };
