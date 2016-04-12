@@ -2,7 +2,7 @@ Ext.define('CA.technicalservices.ProjectPickerDialog',{
     extend: 'Rally.ui.dialog.Dialog',
     alias: 'widget.tsprojectpickerdialog',
     
-    width: 300,
+    width: 400,
     closable: true,
     
     selectedRecords: [],
@@ -23,10 +23,8 @@ Ext.define('CA.technicalservices.ProjectPickerDialog',{
         border: false,
         items: [{
             xtype:'container', 
-            itemId:'grid_container',
-            layout: 'fit',
+            itemId:'selector_container',
             height: 200
-            
         }]
     }],
 
@@ -51,7 +49,9 @@ Ext.define('CA.technicalservices.ProjectPickerDialog',{
         this._buildButtons();
         this._buildDisplayBar();
         this._updateDisplay();
-        this._buildTree();
+        
+        this._buildProjectGrid();
+        //this._buildTree();
     },
     
     _buildDisplayBar: function() {
@@ -60,12 +60,12 @@ Ext.define('CA.technicalservices.ProjectPickerDialog',{
             dock: 'top',
             padding: '0 0 10 0',
             layout: 'hbox',
-            items: [ {
+            items: [{
                 xtype:'container',
                 itemId: 'displayBox', 
                 height: 50,
                 autoScroll: true
-            } ]
+            }]
         });
     },
     
@@ -156,6 +156,70 @@ Ext.define('CA.technicalservices.ProjectPickerDialog',{
         this._updateDisplay();
     },
     
+    _buildProjectGrid: function() {
+        this.selector = this.down('#selector_container').add({
+            xtype:'rallytextfield',
+            itemId:'searchTerms',
+            emptyText: 'Type & Enter to Search Name',
+            enableKeyEvents: true,
+            flex: 1,
+            width: '100%',
+            listeners: {
+                scope: this,
+                keyup: function(field,evt){
+                    if ( evt.getKey() === Ext.EventObject.ENTER ) {
+                        this._search();
+                    }
+                },
+                afterrender: function(field) {
+                    field.focus();
+                }
+            }
+        });
+        
+        var container = this.down('#selector_container').add({
+            xtype:'container', 
+            itemId:'selector_container',
+            height: 180,
+            layout: 'fit'
+        });
+        
+        this.grid = container.add({
+            xtype:'rallygrid',
+            showRowActionsColumn: false,
+            enableEditing: false,
+            hideHeaders: true,
+            showPagingToolbar: true,
+            storeConfig: {
+                model:'Project'
+            },
+            columnCfgs: [{dataIndex:'Name',text:'Click to Add'}],
+            listeners: {
+                scope: this,
+                itemclick: function(grid,record) {
+                    this._addRecordToSelectedRecords(record);
+                }
+            }
+        });
+    },
+    
+    _search: function() {
+        var terms = this._getSearchTerms();
+        console.log('searching for ', terms);
+        
+        var store = this.grid.getStore();
+        store.setFilter(null);
+        if (terms) {
+            store.setFilter({ property:'Name', operator:'contains', value:terms });
+        } 
+        store.loadPage(1);
+    },
+
+    _getSearchTerms: function() {
+        var textBox = this.down('#searchTerms');
+        return textBox && textBox.getValue();
+    },
+        
     _buildTree: function() {
         
         this.tree = Ext.create('Rally.ui.tree.ProjectTree',{
