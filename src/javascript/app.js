@@ -30,6 +30,11 @@ Ext.define("TSTimeInState", {
     },
 
     launch: function() {
+        
+        this._setDisplayFormats();
+        
+        this.logger.log('formats:',this.dateFormat, this.timeFormat);
+        
         var filters = Rally.data.wsapi.Filter.or([
             {property:'TypePath', operator: 'contains',  value: 'PortfolioItem/' },
             {property:'Name', value: 'Defect' },
@@ -69,6 +74,26 @@ Ext.define("TSTimeInState", {
 
     },
     
+    _setDisplayFormats: function() {
+        var user_context = this.getContext().getUser();
+        this.logger.log("User Context", user_context);
+        
+        this.dateFormat = user_context.UserProfile.DateFormat;
+        this.timeFormat = user_context.UserProfile.DateTimeFormat;
+        
+        if ( Ext.isEmpty(this.dateFormat) ) {
+            this.dateFormat = this.getContext().getWorkspace().WorkspaceConfiguration.DateFormat;
+        }
+        
+        if ( Ext.isEmpty(this.timeFormat) ) {
+            this.timeFormat = this.getContext().getWorkspace().WorkspaceConfiguration.DateTimeFormat;
+        }
+        
+        this.timeFormat = this.timeFormat.replace(/z/,'');
+        
+        return;
+    },
+
     _clearBoxes: function(containers){
         Ext.Array.each(containers, function(container){
             container.removeAll();
@@ -753,6 +778,21 @@ Ext.define("TSTimeInState", {
         
         this.logger.log('show states', show_states);
         
+        var date_renderer = function(value,meta,record) {
+            if ( Ext.isEmpty(value) ) { return ""; }
+            
+            if ( Ext.isString(value) ) {
+                value = Rally.util.DateTime.fromIsoString(value);
+            }
+            
+            var format = me.timeFormat;
+            if ( metric == "Days" ) {
+                format = me.dateFormat;
+            }
+            return Rally.util.DateTime.format(value,format);
+        };
+        
+        
         Ext.Array.each(show_states, function(state) {
             columns.push({
                 dataIndex: state,
@@ -773,20 +813,14 @@ Ext.define("TSTimeInState", {
                 dataIndex: 'firstEntry_' + state,
                 text: state + ' first entered',
                 align: 'right',
-                renderer: function(value, meta, record) {
-                    if ( Ext.isEmpty(value) ) { return ""; }
-                    return value;
-                }
+                renderer: date_renderer
             });
             
             columns.push({
                 dataIndex: 'lastExit_' + state,
                 text: state + ' last exited',
                 align: 'right',
-                renderer: function(value, meta, record) {
-                    if ( Ext.isEmpty(value) ) { return ""; }
-                    return value;
-                }
+                renderer: date_renderer
             });
         });
         

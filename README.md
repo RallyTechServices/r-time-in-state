@@ -24,6 +24,10 @@ The time in state will be shown as a number of days or hours depending on the da
 
 ![Metric Button](./images/metric-button.png)
 
+Displayed dates will be rendered in the format provided by the user's setting or the workspace default if the user
+setting for time or date formats are empty.  Time format will be used when the metric is hours and date format will
+be used when the metric is days.
+
 
 ## Development Notes
 
