@@ -3,11 +3,11 @@
 <head>
     <title>TS Time In State</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Fri Apr 15 2016 10:54:15 GMT-0700 (PDT) -->
+    <!--  Build Date: Wed Sep 19 2018 12:53:34 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Apr 15 2016 10:54:15 GMT-0700 (PDT)";
-        var CHECKSUM = 106976346446;
+        var APP_BUILD_DATE = "Wed Sep 19 2018 12:53:34 GMT-0700 (PDT)";
+        var CHECKSUM = 107046047924;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -2044,7 +2044,8 @@ Ext.define("TSTimeInState", {
         var config = {
             filters: filters.and(project_filter),
             fetch: Ext.Array.merge(fetch_base, fetch_added),
-            hydrate: ['Iteration','Release','_PreviousValues.'+field_name,'State',field_name]
+            hydrate: ['Iteration','Release','_PreviousValues.'+field_name,'State',field_name],
+            limit: Infinity
         };
         
         return this._loadSnapshots(config);

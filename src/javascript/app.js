@@ -541,7 +541,8 @@ Ext.define("TSTimeInState", {
         var config = {
             filters: filters.and(project_filter),
             fetch: Ext.Array.merge(fetch_base, fetch_added),
-            hydrate: ['Iteration','Release','_PreviousValues.'+field_name,'State',field_name]
+            hydrate: ['Iteration','Release','_PreviousValues.'+field_name,'State',field_name],
+            limit: Infinity
         };
         
         return this._loadSnapshots(config);
